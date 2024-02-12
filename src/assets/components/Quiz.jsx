@@ -13,38 +13,63 @@ const Quiz = () => {
   const [loading, setLoading] = useState(true);
   const [selectedDifficulty, setSelectedDifficulty] = useState('');
   const [quizStarted, setQuizStarted] = useState(false);
+  const [userAnswer, setUserAnswer] = useState(null);
+
+  const shuffleArray = (array) => {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+  };
 
   const formatQuestions = (data) => {
-    return data.map((question) => ({
-      ...question,
-      question: he.decode(question.question),
-      incorrect_answers: question.incorrect_answers.map((answer) => he.decode(answer)),
-      correct_answer: he.decode(question.correct_answer),
-    }));
+    return data.map((question) => {
+      const incorrectOptions = question.incorrect_answers.map((answer) => he.decode(answer));
+      const correctOption = he.decode(question.correct_answer);
+
+      // Shuffle options, then ensure only 3 incorrect options
+      const shuffledOptions = shuffleArray([...incorrectOptions, correctOption]).slice(0, 4);
+
+      return {
+        ...question,
+        question: he.decode(question.question),
+        correct_answer: correctOption,
+        options: shuffledOptions,
+      };
+    });
   };
 
   const updateQuestion = () => {
     if (currentQuestion < questions.length - 1) {
       setCurrentQuestion(currentQuestion + 1);
-      setTimer(15); // Reset the timer for the next question
+      setTimer(15);
+      setUserAnswer(null);
+      setAnswerSubmitted(false);
     } else {
       setQuizCompleted(true);
     }
-
-    setAnswerSubmitted(false);
   };
 
-  const handleAnswer = (answer) => {
+  const handleAnswer = (answerOption) => {
     if (answerSubmitted) {
       return;
     }
 
-    if (answer === questions[currentQuestion]?.correct_answer) {
+    setUserAnswer(answerOption);
+
+    if (answerOption === questions[currentQuestion]?.correct_answer) {
       setScore(score + 1);
     }
 
-    updateQuestion();
+    setAnswerSubmitted(true);
+
+    // Display next question after 2 seconds
+    setTimeout(() => {
+      updateQuestion();
+    }, 2000);
   };
+
 
   useEffect(() => {
     const fetchData = async () => {
@@ -99,7 +124,7 @@ const Quiz = () => {
   if (!quizStarted) {
     return (
       <div className="flex items-center justify-center min-h-screen mx-5">
-        <div className="card p-4 shadow-md w-full md:max-w-lg bg-white rounded-xl">
+        <div className="card p-4 shadow-md w-full md:max-w-lg bg-white rounded-xl card-container">
           <div className="mb-4">
             <label htmlFor="difficulty" className="block text-lg font-bold mb-2">
               Select Difficulty:
@@ -170,22 +195,26 @@ const Quiz = () => {
         <h1 className="text-2xl md:text-3xl font-bold">Question {currentQuestion + 1}</h1>
         <p className="text-base md:text-lg">{questions[currentQuestion]?.question}</p>
         <div className="space-y-2 flex flex-col">
-          {questions[currentQuestion]?.incorrect_answers.map((answer) => (
+          {questions[currentQuestion]?.options.map((answerOption) => (
             <Button
-              key={answer}
-              onClick={() => handleAnswer(answer)}
-              className="p-2 bg-orange-500 text-white rounded w-full md:w-auto mr-2"
+              key={answerOption}
+              onClick={() => handleAnswer(answerOption)}
+              className={`p-1 ${(answerOption === userAnswer)
+                  ? (answerOption === questions[currentQuestion]?.correct_answer)
+                    ? 'bg-green-500 text-white' // Highlight correct answer when selected
+                    : 'bg-red-500 text-white' // Highlight incorrect answer with red background when selected
+                  : (answerOption === questions[currentQuestion]?.correct_answer && answerSubmitted)
+                    ? 'bg-green-500 text-white' // Highlight correct answer without background when an answer is submitted
+                    : 'bg-orange-500 text-white'
+                } rounded w-full`}
+              disabled={answerSubmitted}
             >
-              {answer}
+              {answerOption}
             </Button>
           ))}
-          <Button
-            onClick={() => handleAnswer(questions[currentQuestion]?.correct_answer)}
-            className="p-2 bg-orange-500 text-white rounded w-full md:w-auto mr-2"
-          >
-            {questions[currentQuestion]?.correct_answer}
-          </Button>
+
         </div>
+
         <div className="mt-4">
           <p className="text-base md:text-lg">Time Remaining: {timer}s</p>
           <div className="h-2 mb-4 overflow-hidden bg-orange-200 rounded">
@@ -201,6 +230,35 @@ const Quiz = () => {
 };
 
 export default Quiz;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
